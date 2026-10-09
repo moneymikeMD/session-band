@@ -1,7 +1,7 @@
 {
   "name": "session-band",
   "description": "A band above the prompt naming the computer, workspace and project a Claude Code session runs in.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": { "name": "Mike Garrett" },
   "types": "./types/index.d.ts"
 }
