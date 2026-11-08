@@ -32,7 +32,8 @@ async function locateHerdr($: EngineInterface): Promise<Herdr | null> {
 }
 
 async function locate($: EngineInterface): Promise<Where> {
-  const [host, root, herdr] = await Promise.all([
+  const [label, host, root, herdr] = await Promise.all([
+    $.env.get('HERDR_MACHINE'),
     $.process.run(['hostname', '-s']),
     $.session.root(),
     locateHerdr($),
@@ -42,7 +43,8 @@ async function locate($: EngineInterface): Promise<Where> {
     { cwd: root },
   )
   const repo = git.exitCode === 0 ? repoOf(git.stdout.trim()) : root
-  return { computer: host.stdout.trim().toLowerCase(), ...placeOf(repo), herdr }
+  const computer = label || host.stdout.trim().toLowerCase()
+  return { computer, ...placeOf(repo), herdr }
 }
 
 async function refresh($: EngineInterface): Promise<void> {

@@ -7,7 +7,8 @@ glance which machine and project a session belongs to:
 computer michaels-macbook-air  workspace home  project homelab   herdr  workspace w1  tab review  agent proj-48
 ```
 
-- **computer** is the short hostname, lowercased.
+- **computer** is `$HERDR_MACHINE` when set, the label other machines use for this one in
+  `herdr --machine`; otherwise the short hostname, lowercased.
 - **workspace** is the `<x>_workspace` folder in the repo's path, shown as `x`
   (`-` when there is none).
 - **project** is the folder directly beneath the workspace, or the repo's own
