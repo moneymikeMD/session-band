@@ -33,12 +33,16 @@ The band refreshes at session start and after every turn.
 /plugin install session-band@moneymike-plugins
 ```
 
-The terminal needs a Nerd Font, Mono variant (for example `GoogleSansCode Nerd Font Mono`), or the icons and arrows draw as empty boxes.
+Outside herdr the terminal needs a Nerd Font, Mono variant (for example `GoogleSansCode Nerd Font Mono`), or the icons and arrows draw as empty
+boxes. Inside a herdr pane the band uses plain Unicode symbols instead (`◉ ⌂ ◆ ❖ ▸ ✦`, half blocks for the bookends edges), because herdr
+0.9.5 draws Nerd Font private-use characters as boxes even when the terminal's font has them
+([herdr#5201](https://github.com/herdrdev/herdr/issues/5201) is the same bug reported on Windows).
 
 ## Choosing a style
 
-Open `/config` and set **Band style** to `tree` or `bookends`. It is stored in `settings.json` as
-`pluginConfigs["session-band@moneymike-plugins"].options.style`, and the band redraws as soon as it changes.
+Open `/config` and set **Band style** to `tree` or `bookends`, and **Band icons** to `auto` (the default: Unicode inside herdr, Nerd Font elsewhere),
+`nerd` or `unicode`. Both are stored in `settings.json` under
+`pluginConfigs["session-band@moneymike-plugins"].options`, and the band redraws as soon as it changes.
 
 ## Develop
 

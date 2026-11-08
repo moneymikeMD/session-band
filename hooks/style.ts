@@ -8,19 +8,46 @@ export type Layout = { kind: 'rows'; rows: Run[][] } | { kind: 'ends'; left: Run
 
 export type Style = 'tree' | 'bookends'
 
-export const GLYPH = {
-  apple: '',
-  ubuntu: '',
-  linux: '',
-  server: '',
-  home: '',
-  repo: '',
-  herdr: '',
-  tab: '\u{F04E9}',
-  agent: '\u{F06A9}',
-  arrowRight: '',
-  arrowLeft: '',
-} as const
+export type Icons = 'nerd' | 'unicode'
+
+export type IconChoice = 'auto' | Icons
+
+type Glyphs = Record<Os | 'home' | 'repo' | 'herdr' | 'tab' | 'agent' | 'arrowRight' | 'arrowLeft', string>
+
+export const GLYPHS: Record<Icons, Glyphs> = {
+  nerd: {
+    mac: '',
+    ubuntu: '',
+    linux: '',
+    other: '',
+    home: '',
+    repo: '',
+    herdr: '',
+    tab: '\u{F04E9}',
+    agent: '\u{F06A9}',
+    arrowRight: '',
+    arrowLeft: '',
+  },
+  unicode: {
+    mac: '◉',
+    ubuntu: '◉',
+    linux: '◉',
+    other: '◉',
+    home: '⌂',
+    repo: '◆',
+    herdr: '❖',
+    tab: '▸',
+    agent: '✦',
+    arrowRight: '▌',
+    arrowLeft: '▐',
+  },
+}
+
+/** herdr 0.9.5 draws Nerd Font private-use glyphs as boxes, so `auto` uses plain Unicode inside a herdr pane. */
+export function iconsFor(choice: IconChoice, at: Where): Icons {
+  if (choice !== 'auto') return choice
+  return at.herdr === null ? 'nerd' : 'unicode'
+}
 
 export type Family = { name: string; hue: string; segment: string }
 
@@ -51,65 +78,64 @@ export function familyOf(computer: string): Family {
   return FAMILIES[n % FAMILIES.length]!
 }
 
-export function osGlyph(os: Os): string {
-  return { mac: GLYPH.apple, ubuntu: GLYPH.ubuntu, linux: GLYPH.linux, other: GLYPH.server }[os]
-}
-
 type Segment = { bg: string; text: string; bold?: boolean }
 
-function chainRight(segments: Segment[]): Run[] {
+function chainRight(segments: Segment[], sep: string): Run[] {
   return segments.flatMap((s, i) => [
     { text: ` ${s.text} `, color: COLOR.onSegment, bg: s.bg, bold: s.bold },
-    { text: GLYPH.arrowRight, color: s.bg, bg: segments[i + 1]?.bg },
+    { text: sep, color: s.bg, bg: segments[i + 1]?.bg },
   ])
 }
 
-function chainLeft(segments: Segment[]): Run[] {
+function chainLeft(segments: Segment[], sep: string): Run[] {
   return segments.flatMap((s, i) => [
-    { text: GLYPH.arrowLeft, color: s.bg, bg: segments[i - 1]?.bg },
+    { text: sep, color: s.bg, bg: segments[i - 1]?.bg },
     { text: ` ${s.text} `, color: COLOR.onSegment, bg: s.bg, bold: s.bold },
   ])
 }
 
 /** Colored icons on one row; inside herdr a bracket in the machine's color adds a second row for the pane. */
-export function tree(at: Where): Layout {
+export function tree(at: Where, icons: Icons = 'nerd'): Layout {
+  const g = GLYPHS[icons]
   const branch = familyOf(at.computer).hue
   const h = at.herdr
   const top: Run[] = [
     { text: h ? '╭─ ' : '── ', color: branch },
-    { text: `${osGlyph(at.os)} ${at.computer}`, color: branch },
+    { text: `${g[at.os]} ${at.computer}`, color: branch },
     { text: '  ' },
-    { text: `${GLYPH.home} ${at.workspace}`, color: COLOR.workspace },
+    { text: `${g.home} ${at.workspace}`, color: COLOR.workspace },
     { text: '  ' },
-    { text: `${GLYPH.repo} ${at.project}`, color: COLOR.project, bold: true },
+    { text: `${g.repo} ${at.project}`, color: COLOR.project, bold: true },
   ]
   if (h === null) return { kind: 'rows', rows: [top] }
   const pane: Run[] = [
     { text: '╰─ ', color: branch },
-    { text: `${GLYPH.herdr} ${h.workspace}`, color: COLOR.herdr },
-    ...(h.tab === undefined ? [] : [{ text: '  ' }, { text: `${GLYPH.tab} ${h.tab}`, color: COLOR.tab }]),
-    ...(h.agent === undefined ? [] : [{ text: '  ' }, { text: `${GLYPH.agent} ${h.agent}`, color: COLOR.agent }]),
+    { text: `${g.herdr} ${h.workspace}`, color: COLOR.herdr },
+    ...(h.tab === undefined ? [] : [{ text: '  ' }, { text: `${g.tab} ${h.tab}`, color: COLOR.tab }]),
+    ...(h.agent === undefined ? [] : [{ text: '  ' }, { text: `${g.agent} ${h.agent}`, color: COLOR.agent }]),
   ]
   return { kind: 'rows', rows: [top, pane] }
 }
 
 /** Powerline segments: where you are pointing right from the left edge, herdr pointing left from the right edge. */
-export function bookends(at: Where): Layout {
+export function bookends(at: Where, icons: Icons = 'nerd'): Layout {
+  const g = GLYPHS[icons]
   const left = chainRight([
-    { bg: familyOf(at.computer).segment, text: `${osGlyph(at.os)} ${at.computer}` },
-    { bg: COLOR.workspaceSegment, text: `${GLYPH.home} ${at.workspace}` },
-    { bg: COLOR.slate, text: `${GLYPH.repo} ${at.project}`, bold: true },
-  ])
+    { bg: familyOf(at.computer).segment, text: `${g[at.os]} ${at.computer}` },
+    { bg: COLOR.workspaceSegment, text: `${g.home} ${at.workspace}` },
+    { bg: COLOR.slate, text: `${g.repo} ${at.project}`, bold: true },
+  ], g.arrowRight)
   const h = at.herdr
   if (h === null) return { kind: 'ends', left, right: [] }
   const right = chainLeft([
-    { bg: COLOR.slate, text: `${GLYPH.herdr} ${h.workspace}` },
-    ...(h.tab === undefined ? [] : [{ bg: COLOR.tabSegment, text: `${GLYPH.tab} ${h.tab}` }]),
-    ...(h.agent === undefined ? [] : [{ bg: COLOR.agentSegment, text: `${GLYPH.agent} ${h.agent}` }]),
-  ])
+    { bg: COLOR.slate, text: `${g.herdr} ${h.workspace}` },
+    ...(h.tab === undefined ? [] : [{ bg: COLOR.tabSegment, text: `${g.tab} ${h.tab}` }]),
+    ...(h.agent === undefined ? [] : [{ bg: COLOR.agentSegment, text: `${g.agent} ${h.agent}` }]),
+  ], g.arrowLeft)
   return { kind: 'ends', left, right }
 }
 
-export function layoutOf(style: Style, at: Where): Layout {
-  return style === 'bookends' ? bookends(at) : tree(at)
+export function layoutOf(style: Style, at: Where, choice: IconChoice = 'auto'): Layout {
+  const icons = iconsFor(choice, at)
+  return style === 'bookends' ? bookends(at, icons) : tree(at, icons)
 }

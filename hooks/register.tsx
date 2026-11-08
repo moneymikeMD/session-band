@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Herdr, Os, Where } from '../types'
 import { layoutOf } from './style'
-import type { Run, Style } from './style'
+import type { IconChoice, Run, Style } from './style'
 import { herdrOf, osOf, placeOf, repoOf } from './where'
 
 const where = atom({ plugin: 'session-band', key: 'where' } as const, null)
@@ -63,6 +63,7 @@ async function refresh($: EngineInterface): Promise<void> {
 
 export const register: Register = (on, options) => {
   const style: Style = options.style === 'bookends' ? 'bookends' : 'tree'
+  const icons: IconChoice = options.icons === 'nerd' || options.icons === 'unicode' ? options.icons : 'auto'
 
   on('session.start', async ($, e, next) => {
     const started = await next(e)
@@ -85,7 +86,7 @@ export const register: Register = (on, options) => {
       runs.map((r, i) => (
         <Text key={String(i)} color={r.color} backgroundColor={r.bg} bold={r.bold}>{r.text}</Text>
       ))
-    const layout = layoutOf(style, at)
+    const layout = layoutOf(style, at, icons)
 
     if (layout.kind === 'ends') {
       return (
