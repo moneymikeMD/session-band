@@ -6,14 +6,14 @@ styles, both drawn with [Nerd Font](https://www.nerdfonts.com/) icons.
 **tree** (the default): colored icons on one row. Inside a herdr pane a bracket in the machine's color adds a second row for the pane.
 
 ```
-╭─  michaels-macbook-air   home   homelab
-╰─  w1  󰓩 review  󰚩 proj-48
+╭─  michaels-macbook-air   home   homelab
+╰─  w1  󰓩 review  󰚩 proj-48
 ```
 
 **bookends**: powerline segments. Where you are points right from the left edge; the herdr pane points left from the right edge.
 
 ```
-  michaels-macbook-air   home   homelab                    w1  󰓩 review  󰚩 proj-48 
+  michaels-macbook-air   home   homelab                 w1  󰓩 review  󰚩 proj-48 
 ```
 
 - **computer** is `$HERDR_MACHINE` when set, the label other machines use for this one in `herdr --machine`; otherwise the short hostname, lowercased.
