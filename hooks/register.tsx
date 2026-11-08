@@ -1,8 +1,10 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Herdr, Where } from '../types'
-import { herdrOf, placeOf, repoOf } from './where'
+import type { Herdr, Os, Where } from '../types'
+import { layoutOf } from './style'
+import type { Run, Style } from './style'
+import { herdrOf, osOf, placeOf, repoOf } from './where'
 
 const where = atom({ plugin: 'session-band', key: 'where' } as const, null)
 
@@ -31,12 +33,19 @@ async function locateHerdr($: EngineInterface): Promise<Herdr | null> {
   return herdrOf(workspace, tabGet, agentGet)
 }
 
+async function locateOs($: EngineInterface): Promise<Os> {
+  const uname = await herdrCall($, 'uname', ['-s'])
+  const release = uname.trim() === 'Linux' ? await herdrCall($, 'cat', ['/etc/os-release']) : ''
+  return osOf(uname, release)
+}
+
 async function locate($: EngineInterface): Promise<Where> {
-  const [label, host, root, herdr] = await Promise.all([
+  const [label, host, root, herdr, os] = await Promise.all([
     $.env.get('HERDR_MACHINE'),
     $.process.run(['hostname', '-s']),
     $.session.root(),
     locateHerdr($),
+    locateOs($),
   ])
   const git = await $.process.run(
     ['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'],
@@ -44,7 +53,7 @@ async function locate($: EngineInterface): Promise<Where> {
   )
   const repo = git.exitCode === 0 ? repoOf(git.stdout.trim()) : root
   const computer = label || host.stdout.trim().toLowerCase()
-  return { computer, ...placeOf(repo), herdr }
+  return { computer, os, ...placeOf(repo), herdr }
 }
 
 async function refresh($: EngineInterface): Promise<void> {
@@ -52,7 +61,9 @@ async function refresh($: EngineInterface): Promise<void> {
   await update($, where, () => found)
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  const style: Style = options.style === 'bookends' ? 'bookends' : 'tree'
+
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     await refresh($)
@@ -70,31 +81,24 @@ export const register: Register = on => {
     if (e.props.hasSurvey || at === null) return next(e)
 
     const { Box, Text } = $.ui.resolve(e)
-    const herdr = at.herdr
+    const draw = (runs: Run[]) =>
+      runs.map((r, i) => (
+        <Text key={String(i)} color={r.color} backgroundColor={r.bg} bold={r.bold}>{r.text}</Text>
+      ))
+    const layout = layoutOf(style, at)
+
+    if (layout.kind === 'ends') {
+      return (
+        <Box justifyContent="space-between" width="100%">
+          <Text wrap="truncate">{draw(layout.left)}</Text>
+          {layout.right.length === 0 ? null : <Text wrap="truncate">{draw(layout.right)}</Text>}
+        </Box>
+      )
+    }
 
     return (
-      <Box>
-        <Text wrap="truncate">
-          <Text dimColor>computer </Text>
-          <Text bold color="suggestion">{at.computer}</Text>
-          <Text dimColor>  workspace </Text>
-          <Text bold color="warning">{at.workspace}</Text>
-          <Text dimColor>  project </Text>
-          <Text bold color="success">{at.project}</Text>
-          {herdr == null ? null : (
-            <Text>
-              {'  '}
-              <Text inverse color="claude">
-                <Text bold> herdr </Text>
-                {' workspace '}
-                <Text bold>{herdr.workspace}</Text>
-                {herdr.tab === undefined ? null : <Text>{'  tab '}<Text bold>{herdr.tab}</Text></Text>}
-                {herdr.agent === undefined ? null : <Text>{'  agent '}<Text bold>{herdr.agent}</Text></Text>}
-                {' '}
-              </Text>
-            </Text>
-          )}
-        </Text>
+      <Box flexDirection="column">
+        {layout.rows.map((row, i) => <Text key={String(i)} wrap="truncate">{draw(row)}</Text>)}
       </Box>
     )
   })

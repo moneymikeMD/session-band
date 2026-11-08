@@ -1,4 +1,13 @@
-import type { Herdr, Where } from '../types'
+import type { Herdr, Os, Where } from '../types'
+
+/** The OS from `uname -s`, with Ubuntu told apart by the `ID` in /etc/os-release. */
+export function osOf(uname: string, osRelease: string): Os {
+  const kernel = uname.trim()
+  if (kernel === 'Darwin') return 'mac'
+  if (kernel !== 'Linux') return 'other'
+  const id = /^ID="?([^"\n]*)"?$/m.exec(osRelease)?.[1]
+  return id === 'ubuntu' ? 'ubuntu' : 'linux'
+}
 
 /** Splits a repo path into workspace (`<x>_workspace` -> `x`) and the project directly beneath it. */
 export function placeOf(repo: string): Pick<Where, 'workspace' | 'project'> {
