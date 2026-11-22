@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Stats } from '../types'
-import { span, statsRow, tokens } from './stats'
+import { span, statsRow, thresholdOf, tokens } from './stats'
 import { bookends, tree } from './style'
 import type { Where } from '../types'
 
@@ -24,6 +24,13 @@ test('the gauge fills toward the auto-compact threshold and changes color on the
   expect(color(40_000)).toBe('#22b3a1')
   expect(color(60_000)).toBe('#d9a23b')
   expect(color(76_000)).toBe('#ec7356')
+})
+
+test('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE caps the reported threshold at that share of the window', () => {
+  expect(thresholdOf(967_000, 1_000_000, '40')).toBe(400_000)
+  expect(thresholdOf(967_000, 1_000_000, undefined)).toBe(967_000)
+  expect(thresholdOf(967_000, 1_000_000, 'junk')).toBe(967_000)
+  expect(thresholdOf(null, 1_000_000, '40')).toBe(null)
 })
 
 test('with auto-compaction off the gauge measures the model window', () => {

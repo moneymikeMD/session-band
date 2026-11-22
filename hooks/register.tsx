@@ -4,6 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Herdr, Os, Stats, Where } from '../types'
 import { layoutOf } from './style'
 import type { IconChoice, Run, Style } from './style'
+import { thresholdOf } from './stats'
 import { herdrOf, osOf, placeOf, repoOf } from './where'
 
 const where = atom({ plugin: 'session-band', key: 'where' } as const, null)
@@ -65,15 +66,17 @@ async function refresh($: EngineInterface): Promise<void> {
 /** `full` also reads the auto-compact threshold; a light read keeps the one already held. */
 async function measure($: EngineInterface, full: boolean, compacted = 0): Promise<void> {
   try {
-    const [usage, now] = await Promise.all([
+    const [usage, now, pct] = await Promise.all([
       $.session.usage(full ? { breakdown: 'summary' } : undefined),
       $.clock.now(),
+      $.env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE'),
     ])
     const b = usage.context.breakdown
+    const reported = b ? (b.isAutoCompactEnabled ? b.autoCompactThreshold ?? null : null) : null
     await update($, stats, (prev: Stats | null): Stats => ({
       used: usage.context.tokens ?? null,
       window: usage.context.window,
-      threshold: b ? (b.isAutoCompactEnabled ? b.autoCompactThreshold ?? null : null) : prev?.threshold ?? null,
+      threshold: b ? thresholdOf(reported, usage.context.window, pct ?? undefined) : prev?.threshold ?? null,
       limits: usage.rateLimits.map(l => ({ kind: l.kind, percentUsed: l.percentUsed, resetsAt: l.resetsAt ?? null })),
       usd: usage.cost?.usd ?? null,
       startedAt: usage.startedAt,

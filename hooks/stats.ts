@@ -20,6 +20,13 @@ export function span(ms: number): string {
   return h > 0 ? `${h}h${m % 60}m` : `${m}m`
 }
 
+/** The auto-compact threshold, capped at `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` percent of the window, which the harness leaves out of the figure it reports. */
+export function thresholdOf(reported: number | null, window: number, pct: string | undefined): number | null {
+  const p = Number(pct)
+  if (reported === null || !(p >= 1 && p <= 100)) return reported
+  return Math.min(reported, Math.round((window * p) / 100))
+}
+
 /** The ceiling the gauge fills toward: the auto-compact threshold, or the model's window when auto-compaction is off. */
 export function ceilingOf(s: Stats): number {
   return s.threshold ?? s.window

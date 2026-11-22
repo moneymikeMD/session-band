@@ -1,7 +1,7 @@
 {
   "name": "session-band",
   "description": "A band above the prompt naming the computer, workspace and project a Claude Code session runs in, with a row of session stats.",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "author": {
     "name": "Mike Garrett"
   },
