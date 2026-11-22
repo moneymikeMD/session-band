@@ -26,6 +26,24 @@ styles, both drawn with [Nerd Font](https://www.nerdfonts.com/) icons.
 
 The band refreshes at session start and after every turn.
 
+## Session stats
+
+A last row carries the session's figures. In `tree` it closes the bracket; in `bookends` it sits under the segments.
+
+```
+╭─  michaels-macbook-air   home   homelab
+├─  w1  󰓩 review  󰚩 proj-48
+╰─ ctx 52k/80k ▰▰▰▰▰▰▰▱▱▱  ·  5h 41% ↻2h10m  ·  7d 18%  ·  $3.42  ·  1h12m  ·  ⟳ 2
+```
+
+- **ctx** is the context in use over the token count auto-compaction runs at, so a full bar means a compaction is next. With auto-compaction off it
+  measures the model's window instead. It turns amber at 60% and red at 85%, and shows `–` until the first response of a fresh or just-compacted window.
+- **5h** and **7d** are the rate-limit windows, each with the time until it resets. They turn amber at 80% and red at 95%.
+- **$** is the `/cost` estimate, then the session's age, then `⟳` with the compactions since the session started (hidden at 0).
+
+The stats refresh after every tool call as well as every turn, so the gauge moves during a long turn. Set **Band stats** to `off` in `/config` to drop
+the row.
+
 ## Install
 
 ```
@@ -41,7 +59,7 @@ boxes. Inside a herdr pane the band uses plain Unicode symbols instead (`◉ ⌂
 ## Choosing a style
 
 Open `/config` and set **Band style** to `tree` or `bookends`, and **Band icons** to `auto` (the default: Unicode inside herdr, Nerd Font elsewhere),
-`nerd` or `unicode`. Both are stored in `settings.json` under
+`nerd` or `unicode`. **Band stats** is `on` or `off`. All are stored in `settings.json` under
 `pluginConfigs["session-band@moneymike-plugins"].options`, and the band redraws as soon as it changes.
 
 ## Develop

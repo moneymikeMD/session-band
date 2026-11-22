@@ -1,10 +1,11 @@
-import type { Os, Where } from '../types'
+import type { Os, Stats, Where } from '../types'
+import { statsRow } from './stats'
 
 /** One stretch of the band drawn in a single style. */
 export type Run = { text: string; color?: string; bg?: string; bold?: boolean }
 
-/** `rows` stacks lines top to bottom; `ends` pins one group left and one right. */
-export type Layout = { kind: 'rows'; rows: Run[][] } | { kind: 'ends'; left: Run[]; right: Run[] }
+/** `rows` stacks lines top to bottom; `ends` pins one group left and one right, with `below` on a row of its own. */
+export type Layout = { kind: 'rows'; rows: Run[][] } | { kind: 'ends'; left: Run[]; right: Run[]; below?: Run[] }
 
 export type Style = 'tree' | 'bookends'
 
@@ -94,31 +95,32 @@ function chainLeft(segments: Segment[], sep: string): Run[] {
   ])
 }
 
-/** Colored icons on one row; inside herdr a bracket in the machine's color adds a second row for the pane. */
-export function tree(at: Where, icons: Icons = 'nerd'): Layout {
+/** Colored icons on one row; a bracket in the machine's color adds a row for the herdr pane and a row for `stats`. */
+export function tree(at: Where, icons: Icons = 'nerd', stats: Stats | null = null): Layout {
   const g = GLYPHS[icons]
   const branch = familyOf(at.computer).hue
   const h = at.herdr
   const top: Run[] = [
-    { text: h ? '╭─ ' : '── ', color: branch },
+    { text: h || stats ? '╭─ ' : '── ', color: branch },
     { text: `${g[at.os]} ${at.computer}`, color: branch },
     { text: '  ' },
     { text: `${g.home} ${at.workspace}`, color: COLOR.workspace },
     { text: '  ' },
     { text: `${g.repo} ${at.project}`, color: COLOR.project, bold: true },
   ]
-  if (h === null) return { kind: 'rows', rows: [top] }
+  const last: Run[][] = stats ? [[{ text: '╰─ ', color: branch }, ...statsRow(stats)]] : []
+  if (h === null) return { kind: 'rows', rows: [top, ...last] }
   const pane: Run[] = [
-    { text: '╰─ ', color: branch },
+    { text: stats ? '├─ ' : '╰─ ', color: branch },
     { text: `${g.herdr} ${h.workspace}`, color: COLOR.herdr },
     ...(h.tab === undefined ? [] : [{ text: '  ' }, { text: `${g.tab} ${h.tab}`, color: COLOR.tab }]),
     ...(h.agent === undefined ? [] : [{ text: '  ' }, { text: `${g.agent} ${h.agent}`, color: COLOR.agent }]),
   ]
-  return { kind: 'rows', rows: [top, pane] }
+  return { kind: 'rows', rows: [top, pane, ...last] }
 }
 
-/** Powerline segments: where you are pointing right from the left edge, herdr pointing left from the right edge. */
-export function bookends(at: Where, icons: Icons = 'nerd'): Layout {
+/** Powerline segments: where you are pointing right from the left edge, herdr pointing left from the right edge, `stats` beneath. */
+export function bookends(at: Where, icons: Icons = 'nerd', stats: Stats | null = null): Layout {
   const g = GLYPHS[icons]
   const left = chainRight([
     { bg: familyOf(at.computer).segment, text: `${g[at.os]} ${at.computer}` },
@@ -126,16 +128,17 @@ export function bookends(at: Where, icons: Icons = 'nerd'): Layout {
     { bg: COLOR.slate, text: `${g.repo} ${at.project}`, bold: true },
   ], g.arrowRight)
   const h = at.herdr
-  if (h === null) return { kind: 'ends', left, right: [] }
+  const below = stats ? { below: [{ text: ' ' }, ...statsRow(stats)] } : {}
+  if (h === null) return { kind: 'ends', left, right: [], ...below }
   const right = chainLeft([
     { bg: COLOR.slate, text: `${g.herdr} ${h.workspace}` },
     ...(h.tab === undefined ? [] : [{ bg: COLOR.tabSegment, text: `${g.tab} ${h.tab}` }]),
     ...(h.agent === undefined ? [] : [{ bg: COLOR.agentSegment, text: `${g.agent} ${h.agent}` }]),
   ], g.arrowLeft)
-  return { kind: 'ends', left, right }
+  return { kind: 'ends', left, right, ...below }
 }
 
-export function layoutOf(style: Style, at: Where, choice: IconChoice = 'auto'): Layout {
+export function layoutOf(style: Style, at: Where, choice: IconChoice = 'auto', stats: Stats | null = null): Layout {
   const icons = iconsFor(choice, at)
-  return style === 'bookends' ? bookends(at, icons) : tree(at, icons)
+  return style === 'bookends' ? bookends(at, icons, stats) : tree(at, icons, stats)
 }

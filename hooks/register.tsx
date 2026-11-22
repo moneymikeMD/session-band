@@ -1,12 +1,13 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Herdr, Os, Where } from '../types'
+import type { Herdr, Os, Stats, Where } from '../types'
 import { layoutOf } from './style'
 import type { IconChoice, Run, Style } from './style'
 import { herdrOf, osOf, placeOf, repoOf } from './where'
 
 const where = atom({ plugin: 'session-band', key: 'where' } as const, null)
+const stats = atom({ plugin: 'session-band', key: 'stats' } as const, null)
 
 async function herdrCall($: EngineInterface, bin: string, argv: string[]): Promise<string> {
   try {
@@ -61,20 +62,60 @@ async function refresh($: EngineInterface): Promise<void> {
   await update($, where, () => found)
 }
 
+/** `full` also reads the auto-compact threshold; a light read keeps the one already held. */
+async function measure($: EngineInterface, full: boolean, compacted = 0): Promise<void> {
+  try {
+    const [usage, now] = await Promise.all([
+      $.session.usage(full ? { breakdown: 'summary' } : undefined),
+      $.clock.now(),
+    ])
+    const b = usage.context.breakdown
+    await update($, stats, (prev: Stats | null): Stats => ({
+      used: usage.context.tokens ?? null,
+      window: usage.context.window,
+      threshold: b ? (b.isAutoCompactEnabled ? b.autoCompactThreshold ?? null : null) : prev?.threshold ?? null,
+      limits: usage.rateLimits.map(l => ({ kind: l.kind, percentUsed: l.percentUsed, resetsAt: l.resetsAt ?? null })),
+      usd: usage.cost?.usd ?? null,
+      startedAt: usage.startedAt,
+      now,
+      compactions: (prev?.compactions ?? 0) + compacted,
+    }))
+  } catch {
+    return
+  }
+}
+
 export const register: Register = (on, options) => {
   const style: Style = options.style === 'bookends' ? 'bookends' : 'tree'
   const icons: IconChoice = options.icons === 'nerd' || options.icons === 'unicode' ? options.icons : 'auto'
+  const hasStats = options.stats !== 'off'
 
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     await refresh($)
+    if (hasStats) await measure($, true)
     return started
   })
 
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
-    if (e.agentId === undefined) await refresh($)
+    if (e.agentId === undefined) {
+      await refresh($)
+      if (hasStats) await measure($, true)
+    }
     return done
+  })
+
+  on('tool.call', async ($, e, next) => {
+    const result = await next(e)
+    if (hasStats && e.agentId === undefined) await measure($, false)
+    return result
+  })
+
+  on('session.compact', async ($, e, next) => {
+    const result = await next(e)
+    if (hasStats && e.agentId === undefined && e.trigger !== 'precompute' && result.messages) await measure($, true, 1)
+    return result
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -86,13 +127,16 @@ export const register: Register = (on, options) => {
       runs.map((r, i) => (
         <Text key={String(i)} color={r.color} backgroundColor={r.bg} bold={r.bold}>{r.text}</Text>
       ))
-    const layout = layoutOf(style, at, icons)
+    const layout = layoutOf(style, at, icons, hasStats ? await read($, stats) : null)
 
     if (layout.kind === 'ends') {
       return (
-        <Box justifyContent="space-between" width="100%">
-          <Text wrap="truncate">{draw(layout.left)}</Text>
-          {layout.right.length === 0 ? null : <Text wrap="truncate">{draw(layout.right)}</Text>}
+        <Box flexDirection="column" width="100%">
+          <Box justifyContent="space-between" width="100%">
+            <Text wrap="truncate">{draw(layout.left)}</Text>
+            {layout.right.length === 0 ? null : <Text wrap="truncate">{draw(layout.right)}</Text>}
+          </Box>
+          {layout.below === undefined ? null : <Text wrap="truncate">{draw(layout.below)}</Text>}
         </Box>
       )
     }
